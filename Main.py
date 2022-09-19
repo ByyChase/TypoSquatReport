@@ -1,4 +1,4 @@
-
+#Iports
 import idna 
 import re
 import sys
@@ -6,8 +6,10 @@ import os
 import whois
 import socket
 import csv
+import time 
+import progressbar
 
-
+#Declaring and Initilizaing Variables
 __version__ = '20220815'
 VALID_FQDN_REGEX = re.compile(r'(?=^.{4,253}$)(^((?!-)[a-z0-9-]{1,63}(?<!-)\.)+[a-z0-9-]{2,63}$)', re.IGNORECASE)
 USER_AGENT_STRING = 'Mozilla/5.0 ({} {}-bit) dnstwist/{}'.format(sys.platform, sys.maxsize.bit_length() + 1, __version__)
@@ -20,6 +22,10 @@ THREAD_COUNT_DEFAULT = min(32, os.cpu_count() + 4)
 domain_whois_information = []
 domains_found = []
 
+
+  
+
+####################### Code from DNSTwister #######################
 
 def domain_tld(domain):
 	try:
@@ -265,33 +271,65 @@ class Fuzzer():
 						domain[k] = domain[k][:1]
 		return sorted(domains)
 
+#Printing the Title
+print(',--------.                      ,---.                           ,--.  ,--.')                   
+print("'--.  .--',--. ,--.,---. ,---. '   .-'  ,---. ,--.,--. ,--,--.,-'  '-.`--',--,--,  ,---.")     
+print("   |  |    \  '  /| .-. | .-. |`.  `-. | .-. ||  ||  |' ,-.  |'-.  .-',--.|      \| .-. |")    
+print("   |  |     \   ' | '-' ' '-' '.-'    |' '-' |'  ''  '\ '-'  |  |  |  |  ||  ||  |' '-' '")    
+print("   `--'   .-'  /  |  |-' `---' `-----'  `-|  | `----'  `--`--'  `--'  `--'`--''--'.`-  /")     
+print(",------.  `---'   `--'                ,--.`--'                                    `---'")      
+print("|  .--. ' ,---.  ,---. ,---. ,--.--.,-'  '-.")                                                 
+print("|  '--'.'| .-. :| .-. | .-. ||  .--''-.  .-'")                                                 
+print("|  |\  \ \   --.| '-' ' '-' '|  |     |  |")                                                   
+print("`--' '--' `----'|  |-' `---' `--'     `--'")
+print("                 `-'                      ")
+
+#Printing Instructions to the user
+print("\n\nThis tool will find all existing domains that could be used in a Typosquating attack")
+
+#Asking for the user input
+userinput = input("\n\nPlease type in your domain: \n\nInput: ")
+
+#Calling the Fuzzer class. This creates and object with my domain and the dictionaries I want to use to create the other twisted domains
+typosquat_domain_info = Fuzzer(domain = userinput, dictionary = "/dictionaries/english.dict", tld_dictionary ="/dictionaries/common_tlds.dct")
 
 
-
-
-typosquat_domain_info = Fuzzer(domain = "msasafety.com", dictionary = "/dictionaries/english.dict", tld_dictionary ="/dictionaries/common_tlds.dct")
-
+#Adding the permutation types to the domains
 typosquat_domain_info.permutations()
+
+#generating the typosquated domains
 typosquat_domain_info.generate()
 
+#creating the progress bar in the CLI
+widgets = [' [',progressbar.Timer(format= 'elapsed time: %(elapsed)s'),'] ',progressbar.Bar('*'),' (',progressbar.ETA(), ') ',]
+
+#Printing the number of domains generated
+print("\nDOMAINS GENERATED: " + str(len(typosquat_domain_info.domains)))
+
+#Adding the bar to the CLI
+bar = progressbar.ProgressBar(max_value=len(typosquat_domain_info.domains), widgets=widgets).start()
+
 count = 0
-print(len(typosquat_domain_info.domains))
+
+#For loop that does the WHOIs lookups for the domains
 for x in typosquat_domain_info.domains:
 	domain_info_temp = []
-
+	
 	try:
 		domain_info = whois.whois(x.get('domain'))
-		print(str(count) + ") " + str(domain_info))
 		count = count +1
 		domain_IP = socket.gethostbyname(x.get('domain'))
-		print(domain_IP)
 		domain_info_temp = [x.get('domain'), domain_info.registrar, domain_info.whois_server, domain_IP, domain_info.creation_date, domain_info.name_servers, domain_info.emails, domain_info.name, domain_info.org, domain_info.address, domain_info.city, domain_info.state, domain_info.registrant_postal_code, domain_info.country]
 		domain_whois_information.append(domain_info_temp)
 
+	
 	except: 
 		pass
 
+	#Updating the progress bar
+	bar.update(count)
 
+#Opening a new file to create an expotred report
 with open('Domain_Report.csv', mode='w', newline='') as domain_report_file:
 
 	domain_writer = csv.writer(domain_report_file)
@@ -302,7 +340,11 @@ with open('Domain_Report.csv', mode='w', newline='') as domain_report_file:
 
 		domain_writer.writerow([x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[7], x[9], x[10], x[11], x[12], x[13]])
 
-print('--------- REPORT CREATED ---------')
+print("\n\nDOMAINS FOUND: " + str(count))
+
+print('\n\n--------- CREATING REPORT ---------')
+
+print('\n\n--------- REPORT CREATED ---------')
 
 
 
